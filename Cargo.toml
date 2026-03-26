@@ -17,12 +17,12 @@ license = "MIT"
 
 [workspace.dependencies]
 # Internal crates
-pubsub-core = { path = "crates/pubsub-core" }
-pubsub-protocol = { path = "crates/pubsub-protocol" }
-pubsub-broker = { path = "crates/pubsub-broker" }
-pubsub-transport-tcp = { path = "crates/pubsub-transport-tcp" }
-pubsub-client = { path = "crates/pubsub-client" }
-pubsub = { path = "crates/pubsub" }
+pubsub-core = { path = "crates/pubsub-core", version = "0.1" }
+pubsub-protocol = { path = "crates/pubsub-protocol", version = "0.1" }
+pubsub-broker = { path = "crates/pubsub-broker", version = "0.1" }
+pubsub-transport-tcp = { path = "crates/pubsub-transport-tcp", version = "0.1" }
+pubsub-client = { path = "crates/pubsub-client", version = "0.1" }
+pubsub = { path = "crates/pubsub", version = "0.1" }
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
