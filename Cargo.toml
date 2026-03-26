@@ -1,0 +1,53 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/pubsub-core",
+    "crates/pubsub-protocol",
+    "crates/pubsub-broker",
+    "crates/pubsub-transport-tcp",
+    "crates/pubsub-server",
+    "crates/pubsub-client",
+    "crates/pubsub",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+# Internal crates
+pubsub-core = { path = "crates/pubsub-core" }
+pubsub-protocol = { path = "crates/pubsub-protocol" }
+pubsub-broker = { path = "crates/pubsub-broker" }
+pubsub-transport-tcp = { path = "crates/pubsub-transport-tcp" }
+pubsub-client = { path = "crates/pubsub-client" }
+pubsub = { path = "crates/pubsub" }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+futures = "0.3"
+
+# Serialization
+bytes = "1"
+serde = { version = "1", features = ["derive"] }
+rmp-serde = "1"
+serde_bytes = "0.11"
+
+# Concurrency
+dashmap = "6"
+
+# Observability
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "2"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Testing
+criterion = { version = "0.5", features = ["async_tokio"] }
+tokio-test = "0.4"
