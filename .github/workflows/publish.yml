@@ -39,7 +39,7 @@ jobs:
             set -e
             echo "$output"
             if [ $status -ne 0 ]; then
-              echo "$output" | grep -q "already uploaded" || exit $status
+              echo "$output" | grep -qE "already uploaded|already exists" || exit $status
               echo "=> $crate already published, skipping"
               return
             fi
