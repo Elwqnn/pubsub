@@ -45,24 +45,99 @@ pub enum Frame {
     Err { message: String },
 }
 
-// Custom serde to handle Bytes as Vec<u8> for msgpack compatibility.
+// Serialize borrows from Frame to avoid payload copy and string clones.
 impl Serialize for Frame {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        FrameHelper::from(self).serialize(serializer)
+        FrameSerHelper::from(self).serialize(serializer)
     }
 }
 
 impl<'de> Deserialize<'de> for Frame {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        FrameHelper::deserialize(deserializer).map(Frame::from)
+        FrameDeHelper::deserialize(deserializer).map(Frame::from)
     }
 }
 
-/// Serde-friendly mirror of Frame that uses Vec<u8> instead of Bytes.
-#[derive(Serialize, Deserialize)]
-enum FrameHelper {
+/// Serialize-only helper: borrows from Frame to avoid copies.
+/// Uses `serde_bytes` for payload fields to encode as msgpack binary.
+#[derive(Serialize)]
+enum FrameSerHelper<'a> {
+    Publish {
+        topic: &'a str,
+        #[serde(with = "serde_bytes")]
+        payload: &'a [u8],
+        reply_to: &'a Option<String>,
+    },
+    Subscribe {
+        sid: u64,
+        subject: &'a str,
+        queue_group: &'a Option<String>,
+    },
+    Unsubscribe {
+        sid: u64,
+    },
+    Message {
+        topic: &'a str,
+        sid: u64,
+        #[serde(with = "serde_bytes")]
+        payload: &'a [u8],
+        reply_to: &'a Option<String>,
+    },
+    Ping,
+    Pong,
+    Ok,
+    Err {
+        message: &'a str,
+    },
+}
+
+impl<'a> From<&'a Frame> for FrameSerHelper<'a> {
+    fn from(frame: &'a Frame) -> Self {
+        match frame {
+            Frame::Publish {
+                topic,
+                payload,
+                reply_to,
+            } => FrameSerHelper::Publish {
+                topic,
+                payload: payload.as_ref(),
+                reply_to,
+            },
+            Frame::Subscribe {
+                sid,
+                subject,
+                queue_group,
+            } => FrameSerHelper::Subscribe {
+                sid: *sid,
+                subject,
+                queue_group,
+            },
+            Frame::Unsubscribe { sid } => FrameSerHelper::Unsubscribe { sid: *sid },
+            Frame::Message {
+                topic,
+                sid,
+                payload,
+                reply_to,
+            } => FrameSerHelper::Message {
+                topic,
+                sid: *sid,
+                payload: payload.as_ref(),
+                reply_to,
+            },
+            Frame::Ping => FrameSerHelper::Ping,
+            Frame::Pong => FrameSerHelper::Pong,
+            Frame::Ok => FrameSerHelper::Ok,
+            Frame::Err { message } => FrameSerHelper::Err { message },
+        }
+    }
+}
+
+/// Deserialize-only helper: owns data, uses `serde_bytes` for binary decoding.
+#[derive(Deserialize)]
+enum FrameDeHelper {
     Publish {
         topic: String,
+        #[serde(with = "serde_bytes")]
         payload: Vec<u8>,
         reply_to: Option<String>,
     },
@@ -77,6 +152,7 @@ enum FrameHelper {
     Message {
         topic: String,
         sid: u64,
+        #[serde(with = "serde_bytes")]
         payload: Vec<u8>,
         reply_to: Option<String>,
     },
@@ -88,53 +164,10 @@ enum FrameHelper {
     },
 }
 
-impl From<&Frame> for FrameHelper {
-    fn from(frame: &Frame) -> Self {
-        match frame {
-            Frame::Publish {
-                topic,
-                payload,
-                reply_to,
-            } => FrameHelper::Publish {
-                topic: topic.clone(),
-                payload: payload.to_vec(),
-                reply_to: reply_to.clone(),
-            },
-            Frame::Subscribe {
-                sid,
-                subject,
-                queue_group,
-            } => FrameHelper::Subscribe {
-                sid: *sid,
-                subject: subject.clone(),
-                queue_group: queue_group.clone(),
-            },
-            Frame::Unsubscribe { sid } => FrameHelper::Unsubscribe { sid: *sid },
-            Frame::Message {
-                topic,
-                sid,
-                payload,
-                reply_to,
-            } => FrameHelper::Message {
-                topic: topic.clone(),
-                sid: *sid,
-                payload: payload.to_vec(),
-                reply_to: reply_to.clone(),
-            },
-            Frame::Ping => FrameHelper::Ping,
-            Frame::Pong => FrameHelper::Pong,
-            Frame::Ok => FrameHelper::Ok,
-            Frame::Err { message } => FrameHelper::Err {
-                message: message.clone(),
-            },
-        }
-    }
-}
-
-impl From<FrameHelper> for Frame {
-    fn from(helper: FrameHelper) -> Self {
+impl From<FrameDeHelper> for Frame {
+    fn from(helper: FrameDeHelper) -> Self {
         match helper {
-            FrameHelper::Publish {
+            FrameDeHelper::Publish {
                 topic,
                 payload,
                 reply_to,
@@ -143,7 +176,7 @@ impl From<FrameHelper> for Frame {
                 payload: Bytes::from(payload),
                 reply_to,
             },
-            FrameHelper::Subscribe {
+            FrameDeHelper::Subscribe {
                 sid,
                 subject,
                 queue_group,
@@ -152,8 +185,8 @@ impl From<FrameHelper> for Frame {
                 subject,
                 queue_group,
             },
-            FrameHelper::Unsubscribe { sid } => Frame::Unsubscribe { sid },
-            FrameHelper::Message {
+            FrameDeHelper::Unsubscribe { sid } => Frame::Unsubscribe { sid },
+            FrameDeHelper::Message {
                 topic,
                 sid,
                 payload,
@@ -164,10 +197,10 @@ impl From<FrameHelper> for Frame {
                 payload: Bytes::from(payload),
                 reply_to,
             },
-            FrameHelper::Ping => Frame::Ping,
-            FrameHelper::Pong => Frame::Pong,
-            FrameHelper::Ok => Frame::Ok,
-            FrameHelper::Err { message } => Frame::Err { message },
+            FrameDeHelper::Ping => Frame::Ping,
+            FrameDeHelper::Pong => Frame::Pong,
+            FrameDeHelper::Ok => Frame::Ok,
+            FrameDeHelper::Err { message } => Frame::Err { message },
         }
     }
 }
