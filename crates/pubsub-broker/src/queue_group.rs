@@ -26,6 +26,11 @@ impl QueueGroupSelector {
         let idx = self.counter.fetch_add(1, Ordering::Relaxed) % members.len();
         Some(&members[idx])
     }
+
+    /// Return the index of the next member for a group of `len` items.
+    pub fn select_index(&self, len: usize) -> usize {
+        self.counter.fetch_add(1, Ordering::Relaxed) % len.max(1)
+    }
 }
 
 impl Default for QueueGroupSelector {

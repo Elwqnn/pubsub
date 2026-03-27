@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use tracing::{debug, warn};
 
-use pubsub_core::{Message, SubscriptionId};
+use pubsub_core::{Message, SubscriptionSender};
 
 use crate::queue_group::QueueGroupSelector;
 use crate::registry::SubscriptionRegistry;
@@ -45,26 +45,27 @@ impl Router {
             return result;
         }
 
-        // Partition subscriptions by queue group.
-        let mut direct_sids = Vec::new();
-        let mut queue_groups: HashMap<String, Vec<SubscriptionId>> = HashMap::new();
+        // Single pass: deliver direct subscribers inline, collect queue groups.
+        let mut queue_groups: HashMap<Arc<str>, Vec<SubscriptionSender>> = HashMap::new();
 
         for sid in &matching_sids {
-            match self.registry.get_queue_group(*sid) {
-                Some(group) => queue_groups.entry(group).or_default().push(*sid),
-                None => direct_sids.push(*sid),
-            }
-        }
+            let Some((sender, queue_group)) = self.registry.get_routing_info(*sid) else {
+                continue;
+            };
 
-        // Deliver to all non-queue-group subscribers.
-        for sid in &direct_sids {
-            self.deliver(*sid, message, &mut result);
+            match queue_group {
+                Some(group) => {
+                    queue_groups.entry(group).or_default().push(sender);
+                }
+                None => Self::deliver_to(sender, message, &mut result),
+            }
         }
 
         // For each queue group, pick one member.
         for members in queue_groups.values() {
-            if let Some(selected) = self.queue_selector.select(members) {
-                self.deliver(*selected, message, &mut result);
+            let idx = self.queue_selector.select_index(members.len());
+            if let Some(sender) = members.get(idx) {
+                Self::deliver_to(sender.clone(), message, &mut result);
             }
         }
 
@@ -79,16 +80,16 @@ impl Router {
         result
     }
 
-    fn deliver(&self, sid: SubscriptionId, message: &Message, result: &mut RoutingResult) {
-        let Some(sender) = self.registry.get_sender(sid) else {
-            return;
-        };
-
+    fn deliver_to(
+        sender: SubscriptionSender,
+        message: &Message,
+        result: &mut RoutingResult,
+    ) {
         if sender.try_send(message.clone()) {
             result.delivered += 1;
         } else {
             result.dropped += 1;
-            warn!(sid = sid.0, topic = %message.topic, "message dropped (backpressure)");
+            warn!(sid = sender.sid().0, topic = %message.topic, "message dropped (backpressure)");
         }
     }
 }
@@ -98,7 +99,7 @@ mod tests {
     use bytes::Bytes;
     use tokio::sync::mpsc;
 
-    use pubsub_core::{Subject, SubscriptionSender, TaggedMessage};
+    use pubsub_core::{Subject, SubscriptionId, SubscriptionSender, TaggedMessage};
 
     use super::*;
 

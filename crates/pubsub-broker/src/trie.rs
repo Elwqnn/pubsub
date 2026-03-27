@@ -108,7 +108,7 @@ impl TopicTrie {
 
     /// Find all subscription ids matching a concrete (non-wildcard) topic.
     pub fn matches(&self, topic: &str) -> Vec<SubscriptionId> {
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(4);
         let tokens: Vec<&str> = topic.split('.').collect();
         Self::collect_matches(&self.root, &tokens, 0, &mut result);
         result

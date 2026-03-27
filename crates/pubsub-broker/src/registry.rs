@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use dashmap::DashMap;
@@ -10,7 +11,7 @@ use crate::trie::TopicTrie;
 /// Metadata for a registered subscription.
 struct SubscriptionEntry {
     subject: Subject,
-    queue_group: Option<String>,
+    queue_group: Option<Arc<str>>,
     sender: SubscriptionSender,
 }
 
@@ -42,6 +43,7 @@ impl SubscriptionRegistry {
         sender: SubscriptionSender,
     ) -> SubscriptionId {
         let sid = sender.sid();
+        let queue_group: Option<Arc<str>> = queue_group.map(|s| Arc::from(s.as_str()));
 
         {
             let mut trie = self.trie.write().await;
@@ -84,10 +86,20 @@ impl SubscriptionRegistry {
     }
 
     /// Get the queue group for a subscription, if any.
-    pub fn get_queue_group(&self, sid: SubscriptionId) -> Option<String> {
+    pub fn get_queue_group(&self, sid: SubscriptionId) -> Option<Arc<str>> {
         self.entries
             .get(&sid)
             .and_then(|e| e.queue_group.clone())
+    }
+
+    /// Get both sender and queue group in a single DashMap lookup.
+    pub fn get_routing_info(
+        &self,
+        sid: SubscriptionId,
+    ) -> Option<(SubscriptionSender, Option<Arc<str>>)> {
+        self.entries
+            .get(&sid)
+            .map(|e| (e.sender.clone(), e.queue_group.clone()))
     }
 
     /// Generate a unique internal subscription id.
