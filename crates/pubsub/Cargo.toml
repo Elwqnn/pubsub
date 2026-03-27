@@ -3,7 +3,14 @@ name = "pubsub"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "Lightweight TCP-based pub/sub message broker"
+readme = "README.md"
+keywords = ["pubsub", "messaging", "tcp", "async", "broker"]
+categories = ["network-programming", "asynchronous"]
+documentation = "https://docs.rs/pubsub"
 
 [dependencies]
 pubsub-client = { workspace = true }
