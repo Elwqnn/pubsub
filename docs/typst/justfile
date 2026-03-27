@@ -1,0 +1,7 @@
+default: build
+
+watch version="0.1.2":
+    typst watch "changelog-{{ version }}.typ" --font-path static/ --ignore-system-fonts
+
+build version="0.1.2":
+    typst compile "changelog-{{ version }}.typ" --font-path static/ --ignore-system-fonts
