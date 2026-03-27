@@ -6,4 +6,4 @@ This crate provides core types for the pubsub message broker. It is not intended
 
 ## License
 
-MIT
+MIT or Apache-2.0

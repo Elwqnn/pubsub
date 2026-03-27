@@ -6,4 +6,4 @@ This crate provides the client library for the pubsub message broker. It is not 
 
 ## License
 
-MIT
+MIT or Apache-2.0

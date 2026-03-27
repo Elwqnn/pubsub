@@ -66,4 +66,4 @@ RUST_LOG=warn  pubsub-server   # errors and warnings only
 
 ## License
 
-MIT
+MIT or Apache-2.0

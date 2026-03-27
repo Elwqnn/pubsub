@@ -6,4 +6,5 @@ This crate provides the wire protocol for the pubsub message broker. It is not i
 
 ## License
 
-MIT
+MIT or Apache-2.0
+

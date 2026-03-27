@@ -6,4 +6,4 @@ This crate provides the broker engine for the pubsub message broker. It is not i
 
 ## License
 
-MIT
+MIT or Apache-2.0

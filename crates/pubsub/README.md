@@ -149,4 +149,4 @@ See the [`chat-server` example](examples/chat-server.rs) for a full working demo
 
 ## License
 
-MIT
+MIT or Apache-2.0
